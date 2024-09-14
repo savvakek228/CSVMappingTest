@@ -22,10 +22,10 @@ namespace CSVMappingTest
             var sessions = await MapCSVToSessionsList(path);
 
             Console.WriteLine("Первый отчет:");
-            await BuildFirstReport(sessions);
+            BuildFirstReport(sessions);
 
             Console.WriteLine("Второй отчет:");
-            await BuildSecondReport(sessions);
+            BuildSecondReport(sessions);
 
             Console.ReadKey();
         }
@@ -57,67 +57,40 @@ namespace CSVMappingTest
             return [.. set];
         }
 
-        private static async Task BuildFirstReport(List<CallCenterSessionInfo> sessionList)
+        private static void BuildFirstReport(List<CallCenterSessionInfo> sessionList)
         {
             var groupedSessions = sessionList.OrderBy(x => x.SessionStart.Day).GroupBy(s => s.SessionStart.Date);
-            var tasks = new HashSet<Task<string>>();
-            var taskFactory = new TaskFactory();
 
             Console.WriteLine("День     Количество сессий");
 
             foreach (var group in groupedSessions)
             {
-                var groupTask = taskFactory.StartNew(() =>
-                {
-                    var simultaneousSessions = group.SelectMany((s1, index1) => group.Skip(index1 + 1)
-                                                .Where((s2) => s1.SessionEnd >= s2.SessionStart && s2.SessionEnd >= s1.SessionStart))
-                                                .Distinct()
-                                                .ToList();
-                    return $"{group.Key:dd.MM.yyyy}     {simultaneousSessions.Count}";
-                });
-                tasks.Add(groupTask);
-            }
-
-            await Task.WhenAll(tasks);
-
-            foreach (var task in tasks)
-            {
-                Console.WriteLine(task.Result);
+                var simultaneousSessions = group.SelectMany((s1, index1) => group.Skip(index1 + 1)
+                                            .Where((s2) => s1.SessionEnd >= s2.SessionStart && s2.SessionEnd >= s1.SessionStart))
+                                            .Distinct()
+                                            .ToList();
+                Console.WriteLine($"{group.Key:dd.MM.yyyy}     {simultaneousSessions.Count}");
             }
 
             Console.WriteLine();
         }
 
-        private static async Task BuildSecondReport(List<CallCenterSessionInfo> sessionList)
+        private static void BuildSecondReport(List<CallCenterSessionInfo> sessionList)
         {
             var groupedSessions = sessionList.GroupBy(s => s.OperatorName);
-            var tasks = new HashSet<Task<string>>();
-            var taskFactory = new TaskFactory();
 
             Console.WriteLine("ФИО              Пауза   Готов   Разговор    Обработка   Перезвон");
 
             foreach (var group in groupedSessions)
             {
-                var groupTask = taskFactory.StartNew(() =>
-                {
-                    var line = string.Join(' ',
-                    group.Key,
-                    group.Where(x => x.OperatorState is OperatorState.Pause).Sum(x => x.SessionTime),
-                    group.Where(x => x.OperatorState is OperatorState.Ready).Sum(x => x.SessionTime),
-                    group.Where(x => x.OperatorState is OperatorState.Call).Sum(x => x.SessionTime),
-                    group.Where(x => x.OperatorState is OperatorState.Processing).Sum(x => x.SessionTime),
-                    group.Where(x => x.OperatorState is OperatorState.Recall).Sum(x => x.SessionTime));
-
-                    return line;
-                });
-                tasks.Add(groupTask);
-            }
-
-            await Task.WhenAll(tasks);
-
-            foreach (var task in tasks)
-            {
-                Console.WriteLine(task.Result);
+                var line = string.Join(' ',
+                group.Key,
+                group.Where(x => x.OperatorState is OperatorState.Pause).Sum(x => x.SessionTime),
+                group.Where(x => x.OperatorState is OperatorState.Ready).Sum(x => x.SessionTime),
+                group.Where(x => x.OperatorState is OperatorState.Call).Sum(x => x.SessionTime),
+                group.Where(x => x.OperatorState is OperatorState.Processing).Sum(x => x.SessionTime),
+                group.Where(x => x.OperatorState is OperatorState.Recall).Sum(x => x.SessionTime));
+                Console.WriteLine(line);
             }
 
             Console.WriteLine();
