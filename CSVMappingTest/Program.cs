@@ -14,30 +14,32 @@ namespace CSVMappingTest
                 return;
             }
 
-            await ProcessReports(filePath);
+            var cts = new CancellationTokenSource();
+
+            await ProcessReports(filePath, cts.Token);
         }
 
-        private static async Task ProcessReports(string path)
+        private static async Task ProcessReports(string path, CancellationToken cancellationToken = default)
         {
-            var sessions = await MapCSVToSessionsList(path);
+            var sessions = await MapCSVToSessionsList(path, cancellationToken);
 
             Console.WriteLine("Первый отчет:");
-            await BuildFirstReport(sessions);
+            await BuildFirstReport(sessions, cancellationToken);
 
             Console.WriteLine("Второй отчет:");
-            await BuildSecondReport(sessions);
+            await BuildSecondReport(sessions, cancellationToken);
 
             Console.ReadKey();
         }
 
-        private static async Task<List<CallCenterSessionInfo>> MapCSVToSessionsList(string filePath)
+        private static async Task<List<CallCenterSessionInfo>> MapCSVToSessionsList(string filePath, CancellationToken cancellationToken = default)
         {
             var set = new HashSet<CallCenterSessionInfo>();
             string? line;
 
             using var reader = new StreamReader(filePath);
             {
-                while ((line = await reader.ReadLineAsync()) is not null)
+                while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
                 {
                     if (line.Contains("Дата начала")) //первая строчка с названиями полей была в середине файла
                         continue;
@@ -57,11 +59,11 @@ namespace CSVMappingTest
             return [.. set];
         }
 
-        private static async Task BuildFirstReport(List<CallCenterSessionInfo> sessionList)
+        private static async Task BuildFirstReport(List<CallCenterSessionInfo> sessionList, CancellationToken cancellationToken = default)
         {
             var groupedSessions = sessionList.OrderBy(x => x.SessionStart.Day).GroupBy(s => s.SessionStart.Date);
             var tasks = new HashSet<Task<string>>();
-            var taskFactory = new TaskFactory();
+            var taskFactory = new TaskFactory(cancellationToken);
 
             Console.WriteLine("День     Количество сессий");
 
@@ -88,11 +90,11 @@ namespace CSVMappingTest
             Console.WriteLine();
         }
 
-        private static async Task BuildSecondReport(List<CallCenterSessionInfo> sessionList)
+        private static async Task BuildSecondReport(List<CallCenterSessionInfo> sessionList, CancellationToken cancellationToken = default)
         {
             var groupedSessions = sessionList.GroupBy(s => s.OperatorName);
             var tasks = new HashSet<Task<string>>();
-            var taskFactory = new TaskFactory();
+            var taskFactory = new TaskFactory(cancellationToken);
 
             Console.WriteLine("ФИО              Пауза   Готов   Разговор    Обработка   Перезвон");
 
