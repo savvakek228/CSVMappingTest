@@ -71,11 +71,20 @@ namespace CSVMappingTest
             {
                 var groupTask = taskFactory.StartNew(() =>
                 {
-                    var simultaneousSessions = group.SelectMany((s1, index1) => group.Skip(index1 + 1)
-                                                .Where((s2) => s1.SessionEnd >= s2.SessionStart && s2.SessionEnd >= s1.SessionStart))
-                                                .Distinct()
-                                                .ToList();
-                    return $"{group.Key:dd.MM.yyyy}     {simultaneousSessions.Count}";
+                    var dateTimeTupleList = new List<Tuple<DateTime, int>>();
+                    dateTimeTupleList.AddRange(group.Select(g => new Tuple<DateTime, int>(g.SessionStart, 1)));
+                    dateTimeTupleList.AddRange(group.Select(g => new Tuple<DateTime, int>(g.SessionEnd, -1)));
+                    var maxCumulativeSumOfADay = 0;
+                    var currentSum = 0;
+                    foreach (var node in dateTimeTupleList.OrderBy(dt => dt.Item1))
+                    {
+                        currentSum += node.Item2;
+                        if (currentSum > maxCumulativeSumOfADay)
+                        {
+                            maxCumulativeSumOfADay++;
+                        }
+                    }
+                    return $"{group.Key:dd.MM.yyyy}     {maxCumulativeSumOfADay}";
                 });
                 tasks.Add(groupTask);
             }
